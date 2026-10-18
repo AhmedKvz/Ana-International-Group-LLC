@@ -59,7 +59,7 @@ function RootComponent(){
 function NotFound(){
   return <main className="page-state"><span className="state-mark">ANA / 404</span><h1>Wrong turn?</h1><p>The page you requested could not be found.</p><Link to="/">Back to homepage</Link></main>;
 }
-function ErrorView({error,reset}:{error:Error;reset:()=>void}){
+function ErrorView({error,reset}:{error:unknown;reset:()=>void}){
   const router=useRouter();
   useEffect(()=>{ reportHiggsfieldError(error,{boundary:'root_error'}); },[error]);
   return <main className="page-state"><span className="state-mark">ANA / SERVICE</span><h1>Something went wrong.</h1><p>Please refresh the page or return home.</p><button onClick={()=>{router.invalidate();reset()}}>Try again</button></main>;
