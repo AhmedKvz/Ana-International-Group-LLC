@@ -9,6 +9,7 @@ import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { fileURLToPath } from "node:url";
+import { nitro } from "nitro/vite";
 
 // The vendored @higgsfield/quanta components import their glyphs from the private
 // Nexus-only `@higgsfield-ai/icons`. Generated sites build on the PUBLIC npm
@@ -20,11 +21,15 @@ const QUANTA_ICONS_SHIM = fileURLToPath(
 );
 
 export default defineConfig(({ mode }) => {
+  const vercel = process.env.VERCEL === "1";
   const designInspectorEnabled = process.env.HF_DESIGN_INSPECTOR === "1" || mode === "design";
 
   return {
     resolve: {
-      alias: [{ find: /^@higgsfield-ai\/icons(\/.*)?$/, replacement: QUANTA_ICONS_SHIM }],
+      alias: [
+        { find: /^@higgsfield-ai\/icons(\/.*)?$/, replacement: QUANTA_ICONS_SHIM },
+        ...(vercel ? [{ find: "cloudflare:workers", replacement: fileURLToPath(new URL("./src/lib/vercel-bindings.server.ts", import.meta.url)) }] : []),
+      ],
     },
     // The server bundle runs as a Cloudflare Worker — there is no node_modules
     // at runtime. Vite's default SSR build leaves npm deps as bare external
@@ -36,12 +41,12 @@ export default defineConfig(({ mode }) => {
       // `cloudflare:workers` is a workerd runtime built-in that exposes the Worker
       // env / bindings (D1 `DB`, R2 `STORAGE`). Like node: builtins it must NOT be
       // bundled; the runtime provides it. (`ssr.external` is typed string[].)
-      external: ["cloudflare:workers"],
+      external: vercel ? [] : ["cloudflare:workers"],
     },
     build: {
       // Keep `cloudflare:*` external in the SSR rollup pass too — `noExternal`
       // above would otherwise try to resolve+bundle it and fail.
-      rollupOptions: { external: [/^cloudflare:/] },
+      rollupOptions: { external: vercel ? [] : [/^cloudflare:/] },
     },
     plugins: [
       // Material Symbols SVGs (the app icon set) import as React components via
@@ -74,6 +79,7 @@ export default defineConfig(({ mode }) => {
       tanstackStart({
         server: { entry: "server" },
       }),
+      ...(vercel ? [nitro({ preset: "vercel" })] : []),
       higgsfieldDesignInspectorVitePlugin(designInspectorEnabled),
       react({
         babel: {
